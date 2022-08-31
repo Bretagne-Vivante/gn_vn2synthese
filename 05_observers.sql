@@ -309,6 +309,7 @@ EXECUTE FUNCTION src_lpodatas.fct_tri_c_vn_observers_to_usershub()
 ;
 
 COMMENT ON TRIGGER tri_upsert_vn_observers_to_geonature ON src_vn_json.observers_json IS 'Trigger permettant de peupler automatiquement la table des observateurs utilisateurs.t_roles à partir des données VisioNature'
+;
 
 COMMIT
 ;
