@@ -15,7 +15,7 @@ DROP TRIGGER IF EXISTS tri_c_upsert_vn_observation_to_geonature ON
 DROP FUNCTION IF EXISTS
     src_lpodatas.fct_tri_c_upsert_vn_observation_to_geonature () CASCADE;
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_tri_c_upsert_vn_observation_to_geonature()
+CREATE OR REPLACE FUNCTION src_faune_france.fct_tri_c_upsert_vn_observation_to_geonature()
     RETURNS TRIGGER
     LANGUAGE plpgsql
 AS
