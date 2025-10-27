@@ -3,7 +3,7 @@
 UPSERT_OBSERVATIONS
 -------------------
 Main trigger function to upsert or delete observations into GeoNature from VisioNature
-Data are then stored into gn_synthese.synthese and src_lpodatas.t_c_synthese_extended
+Data are then stored into gn_synthese.synthese and src_faune_france.t_c_synthese_extended
 with id_synthese as common field.
  */
 BEGIN;
@@ -13,7 +13,7 @@ DROP TRIGGER IF EXISTS tri_c_upsert_vn_observation_to_geonature ON
     src_vn_json.observations_json;
 
 DROP FUNCTION IF EXISTS
-    src_lpodatas.fct_tri_c_upsert_vn_observation_to_geonature () CASCADE;
+    src_faune_france.fct_tri_c_upsert_vn_observation_to_geonature () CASCADE;
 
 CREATE OR REPLACE FUNCTION src_faune_france.fct_tri_c_upsert_vn_observation_to_geonature()
     RETURNS TRIGGER
@@ -23,6 +23,7 @@ $$
 DECLARE
     /* Log duration informations variables */
     start_ts                                 TIMESTAMP;
+	--delta                                  INTERVAL;	--dans script FB utile ??																																  
 
     /* common_data */
     the_id_synthese                          INTEGER;
@@ -51,6 +52,7 @@ DECLARE
     the_id_nomenclature_blurring             INTEGER;
     the_id_nomenclature_source_status        INTEGER;
     the_id_nomenclature_info_geo_type        INTEGER;
+	the_id_nomenclature_behaviour            INTEGER; ---dans FB																											
     the_count_min                            INTEGER;
     the_count_max                            INTEGER;
     the_cd_nom                               INTEGER;
@@ -62,9 +64,9 @@ DECLARE
     the_non_digital_proof                    VARCHAR;
     the_altitude_min                         INTEGER;
     the_altitude_max                         INTEGER;
-    _the_geom_4326                           public.geometry(Geometry, 4326);
-    _the_geom_point                          public.geometry(POINT, 4326);
-    _the_geom_local                          public.geometry(Geometry, :local_srid);
+    _the_geom_4326                           public.geometry(Geometry, 4326); --modif lpo
+    _the_geom_point                          public.geometry(POINT, 4326); --modif lpo
+    _the_geom_local                          public.geometry(Geometry, :local_srid); --modif lpo
     the_date_min                             TIMESTAMP;
     the_date_max                             TIMESTAMP;
     the_validation_comment                   TEXT;
@@ -75,9 +77,10 @@ DECLARE
     the_id_nomenclature_determination_method INTEGER;
     the_comments                             TEXT;
     the_reference_biblio                     VARCHAR(255);
+	the_additional_data						 JSONB;				-- dans FB													   
 
     /* t_c_synthese_extended data */
-    --     the_observation_detail                   JSONB;
+    the_observation_detail                   JSONB; --dans FB
     the_id_sp_source                         INTEGER;
     the_taxo_group                           VARCHAR(50);
     the_taxo_real                            BOOLEAN;
@@ -86,7 +89,7 @@ DECLARE
     the_pseudo_observer_uid                  VARCHAR(200);
     -- TODO Renseigner avec la fonction actuelle
     the_bird_breed_code                      INTEGER;
-    the_breed_status                         VARCHAR(20);
+    the_breed_status                         VARCHAR(20); --modif lpo
     the_bat_breed_colo                       BOOLEAN;
     the_bat_is_gite                          BOOLEAN;
     the_bat_period                           VARCHAR(20);
@@ -106,6 +109,8 @@ DECLARE
     the_is_valid                             BOOLEAN;
     the_private_comment                      TEXT;
     the_is_hidden                            BOOLEAN DEFAULT FALSE;
+    the_meta_create_date                     TIMESTAMP;
+    the_meta_update_date                     TIMESTAMP;
 BEGIN
     SELECT CLOCK_TIMESTAMP() INTO start_ts;
     RAISE DEBUG '-- % -- START SCRIPT' , start_ts;
@@ -115,7 +120,7 @@ BEGIN
 
     /* Partie gn_synthese.synthese */
     SELECT COALESCE(CAST(new.item #>> '{observers,0,uuid}' AS uuid),
-                    src_lpodatas.fct_c_get_observation_uuid(new.site, new.id))
+                    src_faune_france.fct_c_get_observation_uuid(new.site, new.id))
     INTO
         the_unique_id_sinp;
     RAISE DEBUG 'UUID is %' , the_unique_id_sinp;
@@ -124,10 +129,10 @@ BEGIN
     FROM src_vn_json.forms_json
     WHERE (new.site, (new.item #>> '{observers,0,id_form}')::INT) = (forms_json.site,
                                                                      forms_json.id);
-    SELECT src_lpodatas.fct_c_upsert_or_get_source_from_visionature(new.site)
+    SELECT src_faune_france.fct_c_upsert_or_get_source_from_visionature(new.site)
     INTO the_id_source;
     SELECT new.id::TEXT INTO the_entity_source_pk_value;
-    SELECT src_lpodatas.fct_c_get_id_role_from_visionature_uid(new.item #>>
+    SELECT src_faune_france.fct_c_get_id_role_from_visionature_uid(new.item #>>
                                                                '{observers,0,@uid}', TRUE)
     INTO the_id_digitiser;
     SELECT public.st_setsrid(public.st_makepoint(CAST(((new.item ->
@@ -138,40 +143,34 @@ BEGIN
     SELECT TO_TIMESTAMP(CAST(new.item #>> '{observers,0,timing,@timestamp}' AS DOUBLE PRECISION))
     INTO the_date_min;
     SELECT the_date_min INTO the_date_max;
-    SELECT CAST(COALESCE(src_lpodatas.fct_c_get_taxref_values_from_vn
+    SELECT CAST(COALESCE(src_faune_france.fct_c_get_taxref_values_from_vn
                          ('cd_nom'::TEXT, CAST(new.item #>> '{species,@id}' AS INTEGER))
         , gn_commons.get_default_parameter('visionature_default_cd_nom', NULL)) AS
                INTEGER)
     INTO the_cd_nom;
     SELECT CAST(new.item #>> '{observers,0,atlas_code}' AS INTEGER) INTO the_bird_breed_code;
-    IF
-        /* if project_code > dataset from project code */
-        new.item #> '{observers,0}' ? 'project_code' THEN
-        SELECT src_lpodatas.fct_c_get_or_insert_dataset_from_shortname
-               (new.item #>> '{observers,0,project_code}', 'visionature_default_dataset',
-                'visionature_default_acquisition_framework')
-        INTO the_id_dataset;
+    IF new.item #> '{observers,0}' ? 'project_code'
+    THEN
+        SELECT
+            src_faune_france.fct_c_get_or_insert_dataset_from_shortname(new.item #>> '{observers,0,project_code}',
+                                                                    'visionature_default_dataset',
+                                                                    'visionature_default_acquisition_framework')
+            INTO the_id_dataset;
+    ELSIF src_faune_france.fct_c_get_protocole_name_by_universal_id(new.id_form_universal) IS NOT NULL --verifier si fonction existe dans FF
+    THEN
+        SELECT
+            src_faune_france.fct_c_get_or_insert_dataset_from_shortname(src_faune_france.fct_c_get_protocole_name_by_universal_id(new.id_form_universal),
+                                                                    'visionature_default_dataset',
+                                                                    'visionature_default_acquisition_framework')
+            INTO the_id_dataset;
     ELSE
-        SELECT COALESCE( /* if observer in organism > organism default dataset */
-                       src_lpodatas.fct_c_get_dataset_from_observer_uid(new.item #>>
-                                                                        '{observers,0,@uid}'), /* else if sympetrum data > dataset LPO_SYMPETRUM*/
-                       CASE
-                           WHEN (st_intersects
-                                 (_the_geom_4326, src_lpodatas.fct_get_geom_from_relation_name
-                                                  ('ref_geo.mv_c_sympetrum_cover'))
-                               AND new.item #>> '{species,taxonomy}' = '8') THEN
-                               src_lpodatas.fct_c_get_or_insert_dataset_from_shortname_with_af_id('LPO_SYMPETRUM', NULL,
-                                                                                                  src_lpodatas.fct_c_get_or_insert_basic_acquisition_framework(
-                                                                                                          'LPO_SYMPETRUM',
-                                                                                                          'CA LPO-SYMPETRUM',
-                                                                                                          NOW()::DATE))
-                           ELSE
-                               /* else default dataset */
-                               src_lpodatas.fct_c_get_or_insert_dataset_from_shortname
-                               (NULL, 'visionature_default_dataset', 'visionature_default_acquisition_framework')
-                           END)
-        INTO the_id_dataset;
-    END IF;
+        SELECT
+            coalesce(src_faune_france.fct_c_get_dataset_from_observer_uid(new.item #>> '{observers,0,@uid}'),
+                     src_faune_france.fct_c_get_or_insert_dataset_from_shortname(NULL,
+                                                                             'visionature_default_dataset',
+                                                                             'visionature_default_acquisition_framework'))
+            INTO the_id_dataset;
+    END IF; --FB
     SELECT ref_nomenclatures.fct_c_get_synonyms_nomenclature('NAT_OBJ_GEO',
                                                              new.item #>> '{observers,0,precision}')
     INTO
@@ -227,7 +226,7 @@ BEGIN
                                    CASE
                                        -- Biologic status deducted from breeding status
                                        WHEN
-                                           src_lpodatas.fct_c_get_reproduction_status((new.item #>>
+                                           src_faune_france.fct_c_get_reproduction_status((new.item #>>
                                                                                        '{species,taxonomy}')::INT,
                                                                                       new.item) IN
                                            ('Possible', 'Probable', 'Certain') THEN
@@ -264,12 +263,12 @@ BEGIN
         -- When chr or chn accepted then certain, when admin_hidden then is douteux else
         --	      probable.
         CASE
-            WHEN src_lpodatas.fct_c_get_committees_validation_is_accepted
+            WHEN src_faune_france.fct_c_get_committees_validation_is_accepted
                  (new.item #> '{observers,0,committees_validation}') THEN
                 ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '1')
             WHEN CAST(new.item #>> '{observers,0,admin_hidden}' AS BOOLEAN)
                 OR -- TRUE si soumis à validation
-                 NOT src_lpodatas.fct_c_get_committees_validation_is_accepted
+                 NOT src_faune_france.fct_c_get_committees_validation_is_accepted
                      (new.item #> '{observers,0,committees_validation}') -- TRUE si
                 THEN
                 ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '3')
@@ -277,7 +276,7 @@ BEGIN
                 ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '2')
             END
     INTO the_id_nomenclature_valid_status;
-    SELECT src_lpodatas.fct_c_get_diffusion_level(the_cd_nom, the_date_min,
+    SELECT src_faune_france.fct_c_get_diffusion_level(the_cd_nom, the_date_min,
                                                   the_bird_breed_code, new.item)
     INTO
         the_id_nomenclature_diffusion_level;
@@ -323,17 +322,32 @@ BEGIN
     --	      ref_nomenclatures.get_id_nomenclature('TYP_INF_GEO',
     --	  '2'))s
     INTO the_id_nomenclature_info_geo_type;
-    SELECT CAST(new.item #>> '{observers,0,count}' AS INTEGER) INTO the_count_min;
-    SELECT CAST(new.item #>> '{observers,0,count}' AS INTEGER) INTO the_count_max;
-
-    SELECT src_lpodatas.fct_c_get_species_values_from_vn
+        SELECT
+	CASE
+            WHEN ((new.item #>> '{observers,0,count}' = '0'
+                AND new.item #>> '{observers,0,estimation_code}' LIKE 'NO_VALUE'))--quand non compté on met un effectif à 1
+    THEN 1
+    ELSE
+        cast(new.item #>> '{observers,0,count}' AS INTEGER)
+		END
+        INTO the_count_min;
+    SELECT
+	CASE
+            WHEN ((new.item #>> '{observers,0,count}' = '0'
+                AND new.item #>> '{observers,0,estimation_code}' LIKE 'NO_VALUE'))-- si non compté on ne met pas d'effectif max
+		THEN null
+ELSE
+        cast(new.item #>> '{observers,0,count}' AS INTEGER)
+		END
+        INTO the_count_max;
+    SELECT src_faune_france.fct_c_get_species_values_from_vn
            ('latin_name'::TEXT, the_id_sp_source)
     INTO the_nom_cite;
     SELECT gn_commons.get_default_parameter('taxref_version', NULL)
     INTO
         the_meta_v_taxref;
     SELECT NULL INTO the_sample_number_proof;
-    SELECT src_lpodatas.fct_c_get_medias_url_from_visionature_medias_array
+    SELECT src_faune_france.fct_c_get_medias_url_from_visionature_medias_array
            (new.item #> '{observers,0,medias}')
     INTO the_digital_proof;
     SELECT NULL INTO the_non_digital_proof;
@@ -341,10 +355,8 @@ BEGIN
     SELECT CAST(new.item #>> '{observers,0,altitude}' AS INTEGER) INTO the_altitude_max;
 
     SELECT _the_geom_4326 INTO _the_geom_point;
-    SELECT public.st_transform(_the_geom_4326,
-                               (gn_commons.get_default_parameter('gn_local_srid', NULL))::INT)
-    INTO
-        _the_geom_local;
+    SELECT   public.st_transform(_the_geom_4326, (gn_commons.get_default_parameter('local_srid'))::INT)
+        INTO _the_geom_local;--fb
 
     SELECT NULL INTO the_validation_comment;
     SELECT CASE
@@ -352,7 +364,7 @@ BEGIN
                    AND (new.item #>> '{observers,0,second_hand}') = '1' THEN
                    NULL
                ELSE
-                   src_lpodatas.fct_c_get_role_name_from_visionature_uid(new.item #>>
+                   src_faune_france.fct_c_get_role_name_from_visionature_uid(new.item #>>
                                                                          '{observers,0,@uid}', TRUE)
                END
     INTO the_observers;
@@ -361,7 +373,7 @@ BEGIN
                    AND (new.item #>> '{observers,0,second_hand}') = '1' THEN
                    NULL
                ELSE
-                   src_lpodatas.fct_c_get_role_name_from_visionature_uid(new.item #>>
+                   src_faune_france.fct_c_get_role_name_from_visionature_uid(new.item #>>
                                                                          '{observers,0,@uid}', FALSE)
                END
     INTO the_observers_extended;
@@ -380,35 +392,60 @@ BEGIN
     --			   ,
     --	   gn_synthese.get_default_nomenclature_value('METH_DETERMIN'))
     SELECT new.item #>> '{observers,0,comment}' INTO the_comments;
-    SELECT src_lpodatas.fct_c_get_source_url(the_id_source,
+    SELECT src_faune_france.fct_c_get_source_url(the_id_source,
                                              the_entity_source_pk_value)
     INTO the_reference_biblio;
-    --     SELECT
-    --		       to_timestamp(cast(new.item #>> '{observers,0,insert_date}' AS
-    -- DOUBLE
-    --	     PRECISION))
-    --		       INTO the_meta_create_date;
-    --		   SELECT
-    --		       to_timestamp(cast(new.item #>> '{observers,0,update_date}' AS
-    -- DOUBLE
-    --	     PRECISION))
-    --		       INTO the_meta_update_date;
-    /* Partie .t_c_synthese_extended */
-    SELECT src_lpodatas.fct_c_get_taxo_group_values_from_vn('name',
+  
+SELECT to_timestamp(
+    CAST(
+      (new.item #>> '{update_ts}') AS DOUBLE PRECISION
+    )
+  ) AS the_meta_create_date;
+
+  --/!\ A tester a priori c'est update_ts (?) qui correspond à une colonne de observations_json, il n'est pas dans le champ item
+SELECT
+to_timestamp(update_ts) AS
+        INTO the_meta_update_date;
+
+-- Additional_data à tester sur nouveau format
+    SELECT 
+        case 
+            when	
+            jsonb_strip_nulls(
+            JSONB_BUILD_OBJECT(
+            'atlas_code',new.item #>> '{observers,0,atlas_code}',
+            'death_cause',new.item #>> '{observers,0,extended_info, mortality,death_cause2}'
+                )
+            )
+            != '{}'
+            then 
+            jsonb_strip_nulls(
+            JSONB_BUILD_OBJECT(
+            'atlas_code',new.item #>> '{observers,0,atlas_code}',
+            'death_cause',new.item #>> '{observers,0,extended_info, mortality,death_cause2}'
+                )
+            )
+            else null
+        end
+        INTO the_additional_data;
+   
+
+ /* Partie .t_c_synthese_extended */
+    SELECT src_faune_france.fct_c_get_taxo_group_values_from_vn('name',
                                                             new.site, CAST(new.item #>> '{species,taxonomy}' AS INT))
     INTO
         the_taxo_group;
-    SELECT src_lpodatas.fct_c_get_taxref_values_from_vn('id_rang'::TEXT
+    SELECT src_faune_france.fct_c_get_taxref_values_from_vn('id_rang'::TEXT
                , CAST(new.item #>> '{species,@id}' AS INTEGER)) IN ('ES', 'SSES')
     INTO the_taxo_real;
     SELECT CASE
-               WHEN src_lpodatas.fct_c_get_taxref_values_from_vn
+               WHEN src_faune_france.fct_c_get_taxref_values_from_vn
                     ('nom_vern'::TEXT, the_id_sp_source) IS NOT NULL THEN
-                   SPLIT_PART(src_lpodatas.fct_c_get_taxref_values_from_vn
+                   SPLIT_PART(src_faune_france.fct_c_get_taxref_values_from_vn
                               ('nom_vern'::TEXT, the_id_sp_source), ','
                        , 1)
                ELSE
-                   src_lpodatas.fct_c_get_species_values_from_vn
+                   src_faune_france.fct_c_get_species_values_from_vn
                    ('french_name'::TEXT, the_id_sp_source)
                END
     INTO the_common_name;
@@ -422,7 +459,7 @@ BEGIN
                    ref_nomenclatures.get_nomenclature_label_by_cdnom_mnemonique
                    ('VN_ATLAS_CODE', new.item #>> '{observers,0,atlas_code}')
                ELSE
-                   src_lpodatas.fct_c_get_reproduction_status((new.item #>>
+                   src_faune_france.fct_c_get_reproduction_status((new.item #>>
                                                                '{species,taxonomy}')::INT, new.item)
                END
     INTO the_breed_status;
@@ -439,11 +476,11 @@ BEGIN
     SELECT new.item #>> '{observers,0,extended_info, mortality, death_cause2}' INTO the_mortality_cause;
     SELECT FALSE INTO the_export_excluded;
     SELECT new.item #>> '{observers,0,project_code}' INTO the_project_code;
-    SELECT src_lpodatas.fct_c_get_entity_from_observer_site_uid(CAST((new.item
+    SELECT src_faune_france.fct_c_get_entity_from_observer_site_uid(CAST((new.item
         #>> '{observers,0,@uid}') AS INTEGER), new.site)
     INTO
         the_juridical_person;
-    SELECT src_lpodatas.fct_c_get_behaviours_texts_array_from_id_array
+    SELECT src_faune_france.fct_c_get_behaviours_texts_array_from_id_array
            (new.item #> '{observers,0,behaviours}')
     INTO the_behaviour;
     SELECT new.item #>> '{observers,0,precision}' INTO the_geo_accuracy;
@@ -582,7 +619,7 @@ BEGIN
         -- Updating extended datas when raw data is updated
         RAISE DEBUG '-- % -- Update statement t_c_synthese_extended when found > BEGINNING : total duration %' , start_ts , (SELECT (CLOCK_TIMESTAMP() - start_ts));
         UPDATE
-            src_lpodatas.t_c_synthese_extended
+            src_faune_france.t_c_synthese_extended
         SET id_synthese         = the_id_synthese
           , id_sp_source        = the_id_sp_source
           , taxo_group          = the_taxo_group
@@ -625,7 +662,7 @@ BEGIN
         IF NOT found THEN
             RAISE DEBUG 'Data % from site % not found, proceed INSERT to synthese_extended' , new.id , new.site;
             RAISE DEBUG '-- % -- Update statement t_c_synthese_extended when NOT found > BEGINNING : total duration %' , start_ts , (SELECT (CLOCK_TIMESTAMP() - start_ts));
-            INSERT INTO src_lpodatas.t_c_synthese_extended ( id_synthese, id_sp_source, taxo_group, taxo_real
+            INSERT INTO src_faune_france.t_c_synthese_extended ( id_synthese, id_sp_source, taxo_group, taxo_real
                                                            , common_name, pseudo_observer_uid, bird_breed_code
                                                            , breed_status, bat_breed_colo, bat_is_gite, bat_period
                                                            , estimation_code, date_year, mortality, mortality_cause
@@ -754,7 +791,7 @@ BEGIN
         RETURNING id_synthese INTO the_id_synthese;
         RAISE DEBUG '-- % -- insert statement synthese when found > ENDING : total duration %' , start_ts , (SELECT (CLOCK_TIMESTAMP() - start_ts));
         RAISE DEBUG '-- % -- insert statement t_c_synthese_extended when found > BEGINNING : total duration %' , start_ts , (SELECT (CLOCK_TIMESTAMP() - start_ts));
-        INSERT INTO src_lpodatas.t_c_synthese_extended ( id_synthese, id_sp_source, taxo_group, taxo_real, common_name
+        INSERT INTO src_faune_france.t_c_synthese_extended ( id_synthese, id_sp_source, taxo_group, taxo_real, common_name
                                                        , pseudo_observer_uid, bird_breed_code, breed_status
                                                        , bat_breed_colo, bat_is_gite, bat_period, estimation_code
                                                        , date_year, mortality, mortality_cause, export_excluded
@@ -828,7 +865,7 @@ END;
 
 $$;
 
-COMMENT ON FUNCTION src_lpodatas.fct_tri_c_upsert_vn_observation_to_geonature
+COMMENT ON FUNCTION src_faune_france.fct_tri_c_upsert_vn_observation_to_geonature
     () IS 'Trigger function to upsert datas from VisioNature to synthese and custom child table';
 
 DROP TRIGGER IF EXISTS fct_tri_c_upsert_vn_observation_to_geonature ON
@@ -838,14 +875,14 @@ CREATE TRIGGER fct_tri_c_upsert_vn_observation_to_geonature
     AFTER INSERT OR UPDATE
     ON src_vn_json.observations_json
     FOR EACH ROW
-EXECUTE PROCEDURE src_lpodatas.fct_tri_c_upsert_vn_observation_to_geonature();
+EXECUTE PROCEDURE src_faune_france.fct_tri_c_upsert_vn_observation_to_geonature();
 
 -- TRUNCATE gn_synthese.synthese RESTART IDENTITY CASCADE;
 DROP FUNCTION IF EXISTS
-    src_lpodatas.fct_tri_c_delete_vn_observation_from_geonature () CASCADE;
+    src_faune_france.fct_tri_c_delete_vn_observation_from_geonature () CASCADE;
 
 CREATE OR REPLACE FUNCTION
-    src_lpodatas.fct_tri_c_delete_vn_observation_from_geonature()
+    src_faune_france.fct_tri_c_delete_vn_observation_from_geonature()
     RETURNS TRIGGER
     LANGUAGE plpgsql
 AS
@@ -855,7 +892,7 @@ DECLARE
     the_unique_id_sinp uuid;
 BEGIN
     SELECT COALESCE(CAST(old.item #>> '{observers,0,uuid}' AS uuid),
-                    src_lpodatas.fct_c_get_observation_uuid(old.site, old.id))
+                    src_faune_france.fct_c_get_observation_uuid(old.site, old.id))
     INTO
         the_unique_id_sinp;
     SELECT id_synthese
@@ -864,7 +901,7 @@ BEGIN
     WHERE unique_id_sinp = the_unique_id_sinp;
     RAISE DEBUG '<fct_tri_delete_observation_from_geonature> Delete data with uuid %' , the_unique_id_sinp;
     DELETE
-    FROM src_lpodatas.t_c_synthese_extended
+    FROM src_faune_france.t_c_synthese_extended
     WHERE t_c_synthese_extended.id_synthese = the_id_synthese;
     DELETE
     FROM gn_synthese.synthese
@@ -877,7 +914,7 @@ END;
 
 $$;
 
-COMMENT ON FUNCTION src_lpodatas.fct_tri_c_delete_vn_observation_from_geonature
+COMMENT ON FUNCTION src_faune_france.fct_tri_c_delete_vn_observation_from_geonature
     () IS 'Trigger function to delete datas from gnadm synthese and extended table when DELETE on VisioNature source datas';
 
 DROP TRIGGER IF EXISTS tri_c_delete_vn_observation_from_geonature ON
@@ -887,10 +924,10 @@ CREATE TRIGGER tri_c_delete_vn_observation_from_geonature
     AFTER DELETE
     ON src_vn_json.observations_json
     FOR EACH ROW
-EXECUTE PROCEDURE src_lpodatas.fct_tri_c_delete_vn_observation_from_geonature();
+EXECUTE PROCEDURE src_faune_france.fct_tri_c_delete_vn_observation_from_geonature();
 
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_c_update_user_observations(_observer_uid TEXT) RETURNS VOID
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_update_user_observations(_observer_uid TEXT) RETURNS VOID
     LANGUAGE plpgsql
 AS
 $$
@@ -912,3 +949,4 @@ $$;
 
 
 COMMIT;
+
