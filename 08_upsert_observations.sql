@@ -186,9 +186,10 @@ BEGIN
     -- new.item
     --     #>>
     --	      '{observers,0,details,0,condition}')
-    SELECT ref_nomenclatures.get_id_nomenclature('METH_OBS',
-                                                 '21')
-    INTO the_id_nomenclature_obs_technique;
+    SELECT
+
+    COALESCE(ref_nomenclatures.fct_c_get_synonyms_nomenclature('METH_OBS',new.item #>> '{observers,0,details,0,condition}'),ref_nomenclatures.fct_c_get_synonyms_nomenclature('METH_OBS',new.item #>>'{observers,0,atlas_code}'),ref_nomenclatures.get_id_nomenclature('METH_OBS', '21'))
+     INTO the_id_nomenclature_obs_technique;
     --	 coalesce(
     -- 
     --	     
@@ -236,7 +237,7 @@ BEGIN
                    ref_nomenclatures.get_id_nomenclature('STATUT_BIO'
                        , '1'))
     INTO
-        the_id_nomenclature_bio_status;
+        the_id_nomenclature_bio_status;  
     SELECT CASE
                WHEN new.item #> '{observers,0,extended_info}' ? 'mortality' THEN
                    ref_nomenclatures.get_id_nomenclature('ETA_BIO', '3')
@@ -259,39 +260,38 @@ BEGIN
                    ref_nomenclatures.get_id_nomenclature('PREUVE_EXIST', '2')
                END
     INTO the_id_nomenclature_exist_proof;
-    SELECT
-        -- When chr or chn accepted then certain, when admin_hidden then is douteux else
-        --	      probable.
+  SELECT
+        --when admin_hidden then is invalide, When chr or chn accepted ou données confirmées then certain,  else en attente.
+
         CASE
-            WHEN src_faune_france.fct_c_get_committees_validation_is_accepted
-                 (new.item #> '{observers,0,committees_validation}') THEN
-                ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '1')
-            WHEN CAST(new.item #>> '{observers,0,admin_hidden}' AS BOOLEAN)
-                OR -- TRUE si soumis à validation
-                 NOT src_faune_france.fct_c_get_committees_validation_is_accepted
-                     (new.item #> '{observers,0,committees_validation}') -- TRUE si
-                THEN
-                ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '3')
-            ELSE
-                ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '2')
-            END
+    WHEN JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'admin_hidden_type') is not null --les données rejetées
+	then
+	 coalesce(
+             ref_nomenclatures.fct_c_get_synonyms_nomenclature('STATUT_VALID',new.item #>> '{observers,0,admin_hidden_type}')
+                , ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '4')
+                ) --Invalide
+				--voir si on ajoute ce niveau inspiré du script LPO
+	 WHEN JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'committees_validation') ='{"chn": "ACCEPTED"}'
+			and JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'admin_hidden') is null --les données chn acceptés sans rejet sur validation
+	 then   ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '1') ----Certain - très probable
+     --les données confirmées
+     WHEN JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'confirmed_by') is not null--les données confirmées
+			and JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'gradation') ='CERTAIN'
+	 then   ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '1') ----Certain - très probable
+     else ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '0')
     INTO the_id_nomenclature_valid_status;
     SELECT src_faune_france.fct_c_get_diffusion_level(the_cd_nom, the_date_min,
                                                   the_bird_breed_code, new.item)
     INTO
         the_id_nomenclature_diffusion_level;
     SELECT
-        --
-        -- coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature('STADE_VIE',
-        --								    new.item
-        -- #>> '{observers,0,details,0,age}'),
-        --		   gn_synthese.get_default_nomenclature_value('STADE_VIE'))
-        ref_nomenclatures.get_id_nomenclature('STADE_VIE',
-                                              '0')
-    INTO the_id_nomenclature_life_stage;
-    SELECT ref_nomenclatures.get_id_nomenclature('SEXE',
-                                                 '0')
-    INTO the_id_nomenclature_sex;
+        coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature('STADE_VIE',new.item #>> '{observers,0,details,0,age}'),
+        ref_nomenclatures.get_id_nomenclature('STADE_VIE', '0'))
+        INTO the_id_nomenclature_life_stage;
+    SELECT 
+    COALESCE(ref_nomenclatures.fct_c_get_synonyms_nomenclature('SEXE',new.item #>> '{observers,0,details,0,sex}'),
+    ref_nomenclatures.get_id_nomenclature('SEXE', '0'))
+        INTO the_id_nomenclature_sex;
     SELECT ref_nomenclatures.get_id_nomenclature('OBJ_DENBR',
                                                  'IND')
     INTO the_id_nomenclature_obj_count;
@@ -301,12 +301,18 @@ BEGIN
         ref_nomenclatures.get_id_nomenclature('TYP_DENBR',
                                               'ind')
     INTO the_id_nomenclature_type_count;
-    SELECT CASE
-               WHEN CAST(new.item #>> '{observers,0,hidden}' AS BOOLEAN) THEN
-                   ref_nomenclatures.get_id_nomenclature('SENSIBILITE', '2')
-               ELSE
-                   ref_nomenclatures.get_id_nomenclature('SENSIBILITE', '0')
-               END
+    SELECT --------Script LPO inadapté, il faut le calcul de la sensibilité de l'espèce selon référentiel taxonomique pas en fonction des données cachées
+---utiliser FUNCTION gn_sensitivity.get_id_nomenclature_sensitivity(my_date_obs date, my_cd_ref integer, my_geom geometry, my_criterias jsonb)
+   ---corriger par 
+   -- gn_sensitivity.get_id_nomenclature_sensitivity(
+--date_min::date,
+--taxonomie.find_cdref(cd_nom),
+--the_geom_local,
+--('{"STATUT_BIO": ' || id_nomenclature_bio_status::text || '}')::jsonb
+--)
+---?
+    NULL
+    -------------------
     INTO the_id_nomenclature_sensitivity;
 
     SELECT ref_nomenclatures.get_id_nomenclature('DEE_FLOU',
@@ -396,16 +402,16 @@ ELSE
                                              the_entity_source_pk_value)
     INTO the_reference_biblio;
   
-SELECT to_timestamp(
-    CAST(
-      (new.item #>> '{update_ts}') AS DOUBLE PRECISION
-    )
-  ) AS the_meta_create_date;
-
-  --/!\ A tester a priori c'est update_ts (?) qui correspond à une colonne de observations_json, il n'est pas dans le champ item
 SELECT
-to_timestamp(update_ts) AS
-        INTO the_meta_update_date;
+  to_timestamp(cast(new.item #>> '{observers,0,insert_date,@timestamp}' AS DOUBLE PRECISION))
+  INTO the_meta_create_date;
+
+-- Extraire update_date si présent, sinon on met la date d'insertion
+SELECT
+   COALESCE(
+  to_timestamp(cast(new.item #>> '{observers,0,update_date,@timestamp}' AS DOUBLE PRECISION)),
+  to_timestamp(cast(new.item #>> '{observers,0,insert_date,@timestamp}' AS DOUBLE PRECISION)))
+  INTO the_meta_update_date;
 
 -- Additional_data à tester sur nouveau format
     SELECT 
