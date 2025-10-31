@@ -35,10 +35,10 @@ COMMENT ON FUNCTION public.jsonb_arr_record_keys(jsonb) IS '
 
 
 /* Fonction to create observers if not already registered */
-DROP FUNCTION IF EXISTS src_lpodatas.fct_c_create_usershub_roles_from_visionature (
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_create_usershub_roles_from_visionature (
     _site VARCHAR, _item jsonb, _rq TEXT
 );
-CREATE FUNCTION src_lpodatas.fct_c_create_usershub_roles_from_visionature(_site CHARACTER VARYING, _item jsonb,
+CREATE FUNCTION src_faune_france.fct_c_create_usershub_roles_from_visionature(_site CHARACTER VARYING, _item jsonb,
                                                                           _rq TEXT DEFAULT 'Utilisateur VisioNature'::TEXT) RETURNS INTEGER
     LANGUAGE plpgsql
 AS
@@ -46,8 +46,22 @@ $$
 DECLARE
     therolerecord RECORD;
     theorganismid INT;
+	is_observer BOOLEAN;
 BEGIN
-    /* PROCESS
+     --Pour traiter uniquement les utilisateurs qui ont fait des saisies : Vérifier si l'id_universal est bien présent dans observations_json.item.observers.@uid 
+    SELECT EXISTS (
+        SELECT 1
+        FROM src_faune_france.observations_json,
+             jsonb_array_elements(item->'observers') AS obs
+        WHERE obs->>'@uid' = _item ->> 'id_universal'
+    ) INTO is_observer;
+
+    IF NOT is_observer THEN
+        -- Si l'observateur n'est pas dans observations, on ne fait rien
+        RAISE DEBUG 'id_universal % not found among observers. No action taken.', _item ->> 'id_universal';
+        RETURN NULL;
+    END IF;
+   /* PROCESS
        -------
        Si id_universal, alors on récupère l'utilisateur et on fait une MaJ
        Si pas d'id_universal mais mail.
@@ -104,7 +118,7 @@ BEGIN
         IF (_item ? 'id_entity')
         THEN
             -- Si from_vn contient déjà un rattachement à une entité pour le site
-            SELECT src_lpodatas.fct_c_get_organisme_from_vn_id(_site, _item ->> 'id_entity')
+            SELECT src_faune_france.fct_c_get_organisme_from_vn_id(_site, _item ->> 'id_entity')
             INTO theorganismid;
             RAISE DEBUG '<ID ORGANISM> is % | % | % ', _site, _item ->> 'id_entity', theorganismid;
             IF (therolerecord.id_organisme IS NULL OR
@@ -138,7 +152,7 @@ BEGIN
         END IF;
         RAISE DEBUG 'Observer % with email % already exists', _item ->> 'id_universal', _item ->> 'email';
         IF _item ->> 'anonymous' <> therolerecord.champs_addi #>> '{from_vn,anonymous}' THEN
-            PERFORM src_lpodatas.fct_c_update_user_observations(_item #>> '{id_universal}');
+            PERFORM src_faune_france.fct_c_update_user_observations(_item #>> '{id_universal}');
         END IF;
     ELSE
         INSERT INTO utilisateurs.t_roles ( nom_role, prenom_role, email, id_organisme, champs_addi, remarques, active
@@ -146,7 +160,7 @@ BEGIN
         VALUES ( _item ->> 'name'
                , _item ->> 'surname'
                , _item ->> 'email'
-               , src_lpodatas.fct_c_get_organisme_from_vn_id(_site, _item ->> 'id_entity')
+               , src_faune_france.fct_c_get_organisme_from_vn_id(_site, _item ->> 'id_entity')
                , JSONB_BUILD_OBJECT(
                          'from_vn',
                          JSONB_BUILD_OBJECT(
@@ -167,7 +181,7 @@ BEGIN
         ON CONFLICT (email)
             DO UPDATE SET nom_role     = _item ->> 'name'
                         , prenom_role  = _item ->> 'surname'
-                        , id_organisme = src_lpodatas.fct_c_get_organisme_from_vn_id(_site, _item ->> 'id_entity')
+                        , id_organisme = src_faune_france.fct_c_get_organisme_from_vn_id(_site, _item ->> 'id_entity')
                         , champs_addi  = JSONB_SET(t_roles.champs_addi, '{from_vn}',
                                                    JSONB_BUILD_OBJECT(
                                                            _site,
@@ -190,17 +204,17 @@ END
 $$;
 
 
-COMMENT ON FUNCTION src_lpodatas.fct_c_create_usershub_roles_from_visionature(
+COMMENT ON FUNCTION src_faune_france.fct_c_create_usershub_roles_from_visionature(
     _site VARCHAR, _item jsonb, _rq TEXT
     ) IS 'créée ou mets à jour un observervateur à partir des entrées json VisioNature';
 
 
 /* Function that returns id_role from VisioNature user universal id */
-DROP FUNCTION IF EXISTS src_lpodatas.fct_c_get_id_role_from_visionature_uid (
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_get_id_role_from_visionature_uid (
     _uid TEXT, _check_anonymous bool
 );
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_c_get_id_role_from_visionature_uid(
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_id_role_from_visionature_uid(
     _uid TEXT, _check_anonymous bool DEFAULT FALSE
 )
     RETURNS INT
@@ -221,17 +235,17 @@ END
 $$
     LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION src_lpodatas.fct_c_get_id_role_from_visionature_uid(
+COMMENT ON FUNCTION src_faune_france.fct_c_get_id_role_from_visionature_uid(
     _uid TEXT, _check_anonymous bool
     ) IS 'Retourne un id_role à partir d''un id_universal de visionature';
 
 
 /* Function that returns id_role from VisioNature user universal id */
-DROP FUNCTION IF EXISTS src_lpodatas.fct_c_get_role_name_from_visionature_uid (
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_get_role_name_from_visionature_uid (
     _uid TEXT, _check_anonymous bool
 );
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_c_get_role_name_from_visionature_uid(
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_role_name_from_visionature_uid(
     _uid TEXT, _check_anonymous bool DEFAULT FALSE
 )
     RETURNS TEXT
@@ -252,7 +266,7 @@ END
 $$
     LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION src_lpodatas.fct_c_get_role_name_from_visionature_uid(
+COMMENT ON FUNCTION src_faune_france.fct_c_get_role_name_from_visionature_uid(
     _uid TEXT, _check_anonymous bool
     ) IS 'Retourne un id_role à partir d''un id_universal de visionature';
 
@@ -268,7 +282,7 @@ COMMENT ON FUNCTION src_lpodatas.fct_c_get_role_name_from_visionature_uid(
 --              LIMIT 1)
 --
 -- SELECT
---     src_lpodatas.fct_create_observer_from_visionature(item)
+--     src_faune_france.fct_create_observer_from_visionature(item)
 --     FROM
 --         titem;
 -- WITH
@@ -280,7 +294,7 @@ COMMENT ON FUNCTION src_lpodatas.fct_c_get_role_name_from_visionature_uid(
 --              LIMIT 1)
 --
 -- SELECT
---     src_lpodatas.fct_get_id_role_from_visionature_uid(item ->> 'id_universal')
+--     src_faune_france.fct_get_id_role_from_visionature_uid(item ->> 'id_universal')
 --     FROM
 --         titem;
 /* Trigger pour peupler automatiquement la table t_roles à partir des entrées observateurs de VisioNature*/
@@ -289,26 +303,26 @@ COMMENT ON FUNCTION src_lpodatas.fct_c_get_role_name_from_visionature_uid(
 DROP TRIGGER IF EXISTS tri_upsert_vn_observers_to_geonature ON src_vn_json.observers_json;
 
 
-
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_tri_c_vn_observers_to_usershub()
+----/!\ A lancer avant fonction  upsert observations ??
+CREATE OR REPLACE FUNCTION src_faune_france.fct_tri_c_vn_observers_to_usershub()
     RETURNS TRIGGER
     LANGUAGE plpgsql
 AS
 $$
 BEGIN
     PERFORM
-        src_lpodatas.fct_c_create_usershub_roles_from_visionature(new.site, new.item);
+        src_faune_france.fct_c_create_usershub_roles_from_visionature(new.site, new.item);
     RETURN new;
 END;
 $$;
 
-COMMENT ON FUNCTION src_lpodatas.fct_tri_c_vn_observers_to_usershub() IS 'Function de trigger permettant de peupler automatiquement la table des observateurs utilisateurs.t_roles à partir des données VisioNature';
+COMMENT ON FUNCTION src_faune_france.fct_tri_c_vn_observers_to_usershub() IS 'Function de trigger permettant de peupler automatiquement la table des observateurs utilisateurs.t_roles à partir des données VisioNature';
 
 CREATE TRIGGER tri_upsert_vn_observers_to_geonature
     AFTER INSERT OR UPDATE
     ON src_vn_json.observers_json
     FOR EACH ROW
-EXECUTE FUNCTION src_lpodatas.fct_tri_c_vn_observers_to_usershub();
+EXECUTE FUNCTION src_faune_france.fct_tri_c_vn_observers_to_usershub();
 
 COMMENT ON TRIGGER tri_upsert_vn_observers_to_geonature ON src_vn_json.observers_json IS 'Trigger permettant de peupler automatiquement la table des observateurs utilisateurs.t_roles à partir des données VisioNature';
 
