@@ -74,6 +74,7 @@ DECLARE
     the_observers_extended                   TEXT;
     the_determiner                           TEXT;
     the_id_digitiser                         INTEGER;
+	the_validator                            TEXT;
     the_id_nomenclature_determination_method INTEGER;
     the_comments                             TEXT;
     the_reference_biblio                     VARCHAR(255);
@@ -279,7 +280,16 @@ BEGIN
 			and JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'gradation') ='CERTAIN'
 	 then   ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '1') ----Certain - très probable
      else ref_nomenclatures.get_id_nomenclature('STATUT_VALID', '0')
+	 END
     INTO the_id_nomenclature_valid_status;
+	SELECT CASE
+	 WHEN JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'confirmed_by') is not null--les données confirmées
+			and JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'gradation') ='CERTAIN'
+	 then   JSONB_EXTRACT_PATH_TEXT(new.item, 'observers', '0', 'confirmed_by_name')
+     else ''
+	 END
+    INTO the_validator;
+	
     SELECT src_faune_france.fct_c_get_diffusion_level(the_cd_nom, the_date_min,
                                                   the_bird_breed_code, new.item)
     INTO
