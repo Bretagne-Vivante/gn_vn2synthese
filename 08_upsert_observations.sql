@@ -66,7 +66,7 @@ DECLARE
     the_altitude_max                         INTEGER;
     _the_geom_4326                           public.geometry(Geometry, 4326); --modif lpo
     _the_geom_point                          public.geometry(POINT, 4326); --modif lpo
-    _the_geom_local                          public.geometry(Geometry, :local_srid); --modif lpo
+    _the_geom_local                          GEOMETRY(Geometry, 2154);
     the_date_min                             TIMESTAMP;
     the_date_max                             TIMESTAMP;
     the_validation_comment                   TEXT;
@@ -289,10 +289,19 @@ BEGIN
      else ''
 	 END
     INTO the_validator;
-	
-    SELECT src_faune_france.fct_c_get_diffusion_level(the_cd_nom, the_date_min,
+	SELECT
+        CASE
+            -- Observation "cachée"
+            WHEN cast(new.item #>> '{observers,0,hidden}' IS NOT NULL AS BOOL) THEN
+                ref_nomenclatures.get_id_nomenclature('NIV_PRECIS', '4')
+            -- Observation "invalide" (> refused) ou en ffquestionnement (> question)
+            WHEN new.item #>> '{observers,0,admin_hidden_type}' IN ('refused', 'question') THEN
+                ref_nomenclatures.get_id_nomenclature('NIV_PRECIS', '4')
+            ELSE
+                src_faune_france.fct_c_get_diffusion_level(the_cd_nom, the_date_min,
                                                   the_bird_breed_code, new.item)
-    INTO
+            END
+	INTO
         the_id_nomenclature_diffusion_level;
     SELECT
         coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature('STADE_VIE',new.item #>> '{observers,0,details,0,age}'),
@@ -306,10 +315,8 @@ BEGIN
                                                  'IND')
     INTO the_id_nomenclature_obj_count;
     SELECT
-        --	 ref_nomenclatures.fct_c_get_synonyms_nomenclature('STADE_VIE',
-        --	      new.item #>> '{observers,0,estimation_code}')
-        ref_nomenclatures.get_id_nomenclature('TYP_DENBR',
-                                              'ind')
+coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature('TYP_DENBR',new.item #>> '{observers,0,estimation_code}'),
+    ref_nomenclatures.get_id_nomenclature('TYP_DENBR', 'NSP'))
     INTO the_id_nomenclature_type_count;
     SELECT --------Script LPO inadapté, il faut le calcul de la sensibilité de l'espèce selon référentiel taxonomique pas en fonction des données cachées
 ---utiliser FUNCTION gn_sensitivity.get_id_nomenclature_sensitivity(my_date_obs date, my_cd_ref integer, my_geom geometry, my_criterias jsonb)
@@ -331,12 +338,11 @@ BEGIN
     SELECT ref_nomenclatures.get_id_nomenclature('STATUT_SOURCE',
                                                  'Te')
     INTO the_id_nomenclature_source_status;
-    SELECT ref_nomenclatures.get_id_nomenclature('TYP_INF_GEO', '1')
-    --SELECT coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature(
-    --	       'TYP_INF_GEO',
-    --	       new.item #>> '{observers,0,precision}'),
-    --	      ref_nomenclatures.get_id_nomenclature('TYP_INF_GEO',
-    --	  '2'))s
+    SELECT coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature(
+   	       'TYP_INF_GEO',
+           new.item #>> '{observers,0,precision}'),
+          ref_nomenclatures.get_id_nomenclature('TYP_INF_GEO',
+      '2'))
     INTO the_id_nomenclature_info_geo_type;
         SELECT
 	CASE
