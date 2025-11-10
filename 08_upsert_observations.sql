@@ -344,6 +344,14 @@ coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature('TYP_DENBR',new.item 
           ref_nomenclatures.get_id_nomenclature('TYP_INF_GEO',
       '2'))
     INTO the_id_nomenclature_info_geo_type;
+	
+		SELECT
+ COALESCE(
+        ref_nomenclatures.fct_c_get_synonyms_nomenclature('OCC_COMPORTEMENT', new.item #>> '{observers,0,details,0,condition}'),
+        ref_nomenclatures.fct_c_get_synonyms_nomenclature('OCC_COMPORTEMENT', new.item #>> '{observers,0,atlas_code}') ---vérifier si la fonction récupère bien le champ attendu
+      , ref_nomenclatures.get_id_nomenclature('OCC_COMPORTEMENT', '0') --NSP
+            )::integer
+ INTO the_id_nomenclature_behaviour;
         SELECT
 	CASE
             WHEN ((new.item #>> '{observers,0,count}' = '0'
@@ -400,9 +408,9 @@ ELSE
                END
     INTO the_observers_extended;
     SELECT the_observers INTO the_determiner;
-    SELECT gn_synthese.get_default_nomenclature_value('METH_DETERMIN')
-    INTO
-        the_id_nomenclature_determination_method;
+	SELECT COALESCE(ref_nomenclatures.fct_c_get_synonyms_nomenclature('METH_DETERMIN',new.item #>> '{observers,0,details,0,condition}'),
+	gn_synthese.get_default_nomenclature_value('METH_DETERMIN'))
+    INTO the_id_nomenclature_determination_method;
     --	 COALESCE(
     -- 
     -- 
