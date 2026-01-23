@@ -8,11 +8,11 @@ BEGIN;
 
 CREATE INDEX IF NOT EXISTS i_source_name ON gn_synthese.t_sources (name_source);
 
-DROP FUNCTION IF EXISTS src_lpodatas.fct_c_upsert_or_get_source_from_visionature (
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_upsert_or_get_source_from_visionature (
     _source TEXT
 );
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_c_upsert_or_get_source_from_visionature(
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_upsert_or_get_source_from_visionature(
     _source TEXT
 )
     RETURNS INTEGER
@@ -41,15 +41,15 @@ END
 $$
     LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION src_lpodatas.fct_c_upsert_or_get_source_from_visionature(
+COMMENT ON FUNCTION src_faune_france.fct_c_upsert_or_get_source_from_visionature(
     _source TEXT
     ) IS 'function to basically create new sources from VisioNature import';
 
-DROP FUNCTION IF EXISTS src_lpodatas.fct_c_get_source_url (
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_get_source_url (
     _id_source INT, _id_data TEXT
 );
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_c_get_source_url(
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_source_url(
     _id_source INT, _id_data TEXT DEFAULT NULL
 )
     RETURNS TEXT

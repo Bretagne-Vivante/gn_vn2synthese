@@ -10,7 +10,7 @@ BEGIN;
 
 
 DROP TRIGGER IF EXISTS tri_c_upsert_vn_observation_to_geonature ON
-    src_vn_json.observations_json;
+    src_faune_france.observations_json;
 
 DROP FUNCTION IF EXISTS
     src_faune_france.fct_tri_c_upsert_vn_observation_to_geonature () CASCADE;
@@ -127,7 +127,7 @@ BEGIN
     RAISE DEBUG 'UUID is %' , the_unique_id_sinp;
     SELECT uuid
     INTO the_unique_id_sinp_grp
-    FROM src_vn_json.forms_json
+    FROM src_faune_france.forms_json
     WHERE (new.site, (new.item #>> '{observers,0,id_form}')::INT) = (forms_json.site,
                                                                      forms_json.id);
     SELECT src_faune_france.fct_c_upsert_or_get_source_from_visionature(new.site)
@@ -899,11 +899,11 @@ COMMENT ON FUNCTION src_faune_france.fct_tri_c_upsert_vn_observation_to_geonatur
     () IS 'Trigger function to upsert datas from VisioNature to synthese and custom child table';
 
 DROP TRIGGER IF EXISTS fct_tri_c_upsert_vn_observation_to_geonature ON
-    src_vn_json.observations_json;
+    src_faune_france.observations_json;
 
 CREATE TRIGGER fct_tri_c_upsert_vn_observation_to_geonature
     AFTER INSERT OR UPDATE
-    ON src_vn_json.observations_json
+    ON src_faune_france.observations_json
     FOR EACH ROW
 EXECUTE PROCEDURE src_faune_france.fct_tri_c_upsert_vn_observation_to_geonature();
 
@@ -948,11 +948,11 @@ COMMENT ON FUNCTION src_faune_france.fct_tri_c_delete_vn_observation_from_geonat
     () IS 'Trigger function to delete datas from gnadm synthese and extended table when DELETE on VisioNature source datas';
 
 DROP TRIGGER IF EXISTS tri_c_delete_vn_observation_from_geonature ON
-    src_vn_json.observations_json;
+    src_faune_france.observations_json;
 
 CREATE TRIGGER tri_c_delete_vn_observation_from_geonature
     AFTER DELETE
-    ON src_vn_json.observations_json
+    ON src_faune_france.observations_json
     FOR EACH ROW
 EXECUTE PROCEDURE src_faune_france.fct_tri_c_delete_vn_observation_from_geonature();
 
@@ -966,7 +966,7 @@ DECLARE
 BEGIN
     RAISE DEBUG '<fct_c_update_user_observations> Update observations for user %', _observer_uid;
     WITH "rows" AS (
-        UPDATE src_vn_json.observations_json
+        UPDATE src_faune_france.observations_json
             SET item = item
             WHERE observations_json.item #>> '{observers,0,@uid}' = _observer_uid
             RETURNING 1)

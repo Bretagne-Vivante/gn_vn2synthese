@@ -8,11 +8,11 @@ Various functions to generate metadata from VisioNature datas such as:
 BEGIN;
 
 DROP FUNCTION IF EXISTS
-    src_lpodatas.fct_c_get_or_insert_basic_acquisition_framework (_name TEXT,
+    src_faune_france.fct_c_get_or_insert_basic_acquisition_framework (_name TEXT,
                                                                   _desc TEXT, _startdate DATE);
 
 CREATE OR REPLACE FUNCTION
-    src_lpodatas.fct_c_get_or_insert_basic_acquisition_framework(_name TEXT,
+    src_faune_france.fct_c_get_or_insert_basic_acquisition_framework(_name TEXT,
                                                                  _desc TEXT, _startdate DATE)
     RETURNS INTEGER
 AS
@@ -42,14 +42,14 @@ $$
     LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION
-    src_lpodatas.fct_c_get_or_insert_basic_acquisition_framework (_name TEXT ,
+    src_faune_france.fct_c_get_or_insert_basic_acquisition_framework (_name TEXT ,
     _desc TEXT , _startdate DATE) IS 'function to basically create acquisition framework';
 
-DROP FUNCTION IF EXISTS src_lpodatas.fct_c_get_id_acquisition_framework_by_name
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_get_id_acquisition_framework_by_name
     (_name TEXT);
 
 CREATE OR REPLACE FUNCTION
-    src_lpodatas.fct_c_get_id_acquisition_framework_by_name(_name TEXT)
+    src_faune_france.fct_c_get_id_acquisition_framework_by_name(_name TEXT)
     RETURNS INTEGER
     LANGUAGE plpgsql
 AS
@@ -66,17 +66,17 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION src_lpodatas.fct_c_get_id_acquisition_framework_by_name
+COMMENT ON FUNCTION src_faune_france.fct_c_get_id_acquisition_framework_by_name
     (_name TEXT) IS 'function to get acquisition framework id by name';
 
 
 /* Function to basically create new dataset attached to an acquisition_framework find by name */
 DROP FUNCTION IF EXISTS
-    src_lpodatas.fct_c_get_or_insert_dataset_from_shortname_with_af_id
+    src_faune_france.fct_c_get_or_insert_dataset_from_shortname_with_af_id
     (_shortname TEXT, _default_dataset TEXT, _id_framework INT);
 
 CREATE OR REPLACE FUNCTION
-    src_lpodatas.fct_c_get_or_insert_dataset_from_shortname_with_af_id(_shortname TEXT, _default_dataset TEXT, _id_framework INT)
+    src_faune_france.fct_c_get_or_insert_dataset_from_shortname_with_af_id(_shortname TEXT, _default_dataset TEXT, _id_framework INT)
     RETURNS INTEGER
 AS
 $$
@@ -120,18 +120,18 @@ $$
     LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION
-    src_lpodatas.fct_c_get_or_insert_dataset_from_shortname_with_af_id
+    src_faune_france.fct_c_get_or_insert_dataset_from_shortname_with_af_id
     (_shortname TEXT , _default_dataset TEXT , _id_framework INT) IS
     'function to basically create acquisition framework with id_framework';
 
 
 /* Function to basically create new dataset attached to an acquisition_framework find by name */
-DROP FUNCTION IF EXISTS src_lpodatas.fct_c_get_or_insert_dataset_from_shortname
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_get_or_insert_dataset_from_shortname
 (_shortname TEXT, _default_dataset TEXT, _default_acquisition_framework
     TEXT);
 
 CREATE OR REPLACE FUNCTION
-    src_lpodatas.fct_c_get_or_insert_dataset_from_shortname(_shortname TEXT,
+    src_faune_france.fct_c_get_or_insert_dataset_from_shortname(_shortname TEXT,
                                                             _default_dataset TEXT, _default_acquisition_framework TEXT)
     RETURNS INTEGER
 AS
@@ -164,7 +164,7 @@ BEGIN
         INSERT INTO gn_meta.t_datasets ( id_acquisition_framework, dataset_name
                                        , dataset_shortname, dataset_desc, marine_domain, terrestrial_domain
                                        , additional_data, meta_create_date)
-        VALUES (src_lpodatas.fct_c_get_or_insert_basic_acquisition_framework
+        VALUES (src_faune_france.fct_c_get_or_insert_basic_acquisition_framework
                 (gn_commons.get_default_parameter
                  (_default_acquisition_framework, NULL), ''::TEXT,
                  NOW()::DATE), '[' || the_shortname ||
@@ -206,11 +206,11 @@ END
 $$
     LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION src_lpodatas.fct_c_get_or_insert_dataset_from_shortname
+COMMENT ON FUNCTION src_faune_france.fct_c_get_or_insert_dataset_from_shortname
     (_shortname TEXT , _default_dataset TEXT , _default_acquisition_framework
         TEXT) IS 'function to basically create acquisition framework';
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_c_get_id_dataset_by_shortname(_shortname TEXT)
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_id_dataset_by_shortname(_shortname TEXT)
     RETURNS INTEGER
     LANGUAGE plpgsql
 AS
@@ -226,7 +226,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION src_lpodatas.fct_c_get_id_dataset_by_shortname (_shortname
+COMMENT ON FUNCTION src_faune_france.fct_c_get_id_dataset_by_shortname (_shortname
     TEXT) IS 'function to get dataset id by shortname';
 
 COMMIT;

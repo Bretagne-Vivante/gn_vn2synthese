@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS ref_nomenclatures.t_c_vn_repro_matching_values
 );
 
 
-CREATE OR REPLACE FUNCTION src_lpodatas.fct_c_get_reproduction_status(_taxo_group_id INTEGER, _item jsonb)
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_reproduction_status(_taxo_group_id INTEGER, _item jsonb)
     RETURNS VARCHAR
     IMMUTABLE
     LANGUAGE plpgsql

@@ -3,7 +3,7 @@ INIT DATA METADATA
 ------------------
 Add main new data
 
-
+Vérifier en bdd avant insertion
 */
 
 BEGIN;

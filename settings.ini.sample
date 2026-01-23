@@ -7,5 +7,5 @@ dbPwd=mydbuserpwd
 dbSrid=2154
 
 # Customization
-schemaSource=src_vn_json
-schemaDestination=src_myowndata
+schemaSource=src_faune_france
+schemaDestination=src_faune_france
