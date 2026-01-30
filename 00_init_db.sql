@@ -64,7 +64,7 @@ COMMENT ON COLUMN src_faune_france.t_c_synthese_extended.pseudo_observer_uid IS 
 
 COMMENT ON COLUMN src_faune_france.t_c_synthese_extended.bird_breed_code IS 'Codes "Biolovision" de nidification https://wiki.biolovision.net/Correspondance_codes_atlas';
 
-COMMENT ON COLUMN src_faune_france.t_c_synthese_extended.bird_breed_status IS 'Statut de nidification simplifié (Nicheur possible, probable, certain) d''après oiso_code_nidif';
+COMMENT ON COLUMN src_faune_france.t_c_synthese_extended.breed_status  IS 'Statut de nidification simplifié (Nicheur possible, probable, certain) d''après oiso_code_nidif';
 
 COMMENT ON COLUMN src_faune_france.t_c_synthese_extended.bat_breed_colo IS 'Colonie de reproduction de chauves-souris';
 

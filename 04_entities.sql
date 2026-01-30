@@ -107,11 +107,11 @@ $upsert_entities$;
 --   JSONB) OWNER TO geonatadmin;
 COMMENT ON FUNCTION src_faune_france.fct_c_tri_upsert_entities () IS 'Upsert visionature entity to Usershub organisms';
 
-DROP TRIGGER IF EXISTS tri_c_upsert_entities ON src_vn_json.entities_json;
+DROP TRIGGER IF EXISTS tri_c_upsert_entities ON src_faune_france.entities_json;
 
 CREATE TRIGGER tri_c_upsert_entities
     BEFORE INSERT OR UPDATE
-    ON src_vn_json.entities_json
+    ON src_faune_france.entities_json
     FOR EACH ROW
 EXECUTE FUNCTION src_faune_france.fct_c_tri_upsert_entities();
 
