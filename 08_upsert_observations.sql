@@ -141,6 +141,18 @@ BEGIN
         -> 'observers') -> 0) ->> 'coord_lat' AS FLOAT)), 4326)
     INTO
         _the_geom_4326;
+----- /!\filtre des données sur emprise BV à tester
+
+IF NOT EXISTS (
+  SELECT 1
+  FROM ref_geo.l_areas r
+where id_type=42
+    AND ST_Intersects(_the_geom_4326, r.geom_4326)
+) THEN
+  -- Observation hors Bretagne : on ne fait rien
+  RETURN NEW;  
+END IF;
+--------fin du test de filtre
     SELECT TO_TIMESTAMP(CAST(new.item #>> '{observers,0,timing,@timestamp}' AS DOUBLE PRECISION))
     INTO the_date_min;
     SELECT the_date_min INTO the_date_max;
