@@ -278,7 +278,7 @@ COMMENT ON FUNCTION src_faune_france.fct_c_get_role_name_from_visionature_uid(
 --         (SELECT
 --              jsonb_set(item, '{name}', '"test2"') AS item
 --              FROM
---                  src_vn_json.observers_json
+--                  src_faune_france.observers_json
 --              LIMIT 1)
 --
 -- SELECT
@@ -290,7 +290,7 @@ COMMENT ON FUNCTION src_faune_france.fct_c_get_role_name_from_visionature_uid(
 --         (SELECT
 --              jsonb_set(item, '{name}', '"test2"') AS item
 --              FROM
---                  src_vn_json.observers_json
+--                  src_faune_france.observers_json
 --              LIMIT 1)
 --
 -- SELECT
@@ -300,7 +300,7 @@ COMMENT ON FUNCTION src_faune_france.fct_c_get_role_name_from_visionature_uid(
 /* Trigger pour peupler automatiquement la table t_roles à partir des entrées observateurs de VisioNature*/
 
 
-DROP TRIGGER IF EXISTS tri_upsert_vn_observers_to_geonature ON src_vn_json.observers_json;
+DROP TRIGGER IF EXISTS tri_upsert_vn_observers_to_geonature ON src_faune_france.observers_json;
 
 
 ----/!\ A lancer avant fonction  upsert observations ??
@@ -320,10 +320,10 @@ COMMENT ON FUNCTION src_faune_france.fct_tri_c_vn_observers_to_usershub() IS 'Fu
 
 CREATE TRIGGER tri_upsert_vn_observers_to_geonature
     AFTER INSERT OR UPDATE
-    ON src_vn_json.observers_json
+    ON src_faune_france.observers_json
     FOR EACH ROW
 EXECUTE FUNCTION src_faune_france.fct_tri_c_vn_observers_to_usershub();
 
-COMMENT ON TRIGGER tri_upsert_vn_observers_to_geonature ON src_vn_json.observers_json IS 'Trigger permettant de peupler automatiquement la table des observateurs utilisateurs.t_roles à partir des données VisioNature';
+COMMENT ON TRIGGER tri_upsert_vn_observers_to_geonature ON src_faune_france.observers_json IS 'Trigger permettant de peupler automatiquement la table des observateurs utilisateurs.t_roles à partir des données VisioNature';
 
 COMMIT;

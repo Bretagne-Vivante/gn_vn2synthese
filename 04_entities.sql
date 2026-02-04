@@ -137,25 +137,26 @@ BEGIN
 END;
 $get_organisme_from_vn_id$;
 
-CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_dataset_from_observer_uid(_uid TEXT)
-    RETURNS INTEGER
-    LANGUAGE plpgsql
-AS
-$get_organisme_from_vn_id$
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_dataset_from_observer_uid(_uid text)
+RETURNS integer
+LANGUAGE plpgsql
+IMMUTABLE STRICT
+AS $$
 DECLARE
-    thedatasetid INT;
+  thedatasetid int;
 BEGIN
-    SELECT INTO thedatasetid id_dataset
-    FROM gn_meta.t_datasets
-       , utilisateurs.t_roles
-             JOIN utilisateurs.bib_organismes ON t_roles.id_organisme = bib_organismes.id_organisme
-    WHERE t_roles.champs_addi #>> '{from_vn,id_universal}' = _uid
-      AND t_datasets.additional_data #>> '{standard_name}' =
-          bib_organismes.additional_data #>> '{from_vn, short_name}'
-    LIMIT 1;
-    RETURN thedatasetid;
+  SELECT INTO thedatasetid d.id_dataset
+  FROM utilisateurs.t_roles r
+  JOIN utilisateurs.bib_organismes o ON o.id_organisme = r.id_organisme
+  JOIN gn_meta.t_datasets d
+    ON d.additional_data #>> '{standard_name}' = o.additional_data #>> '{from_vn, short_name}'
+  WHERE r.champs_addi #>> '{from_vn,id_universal}' = _uid
+    AND NULLIF(btrim(o.additional_data #>> '{from_vn, short_name}'), '') IS NOT NULL
+    AND o.additional_data #>> '{from_vn, short_name}' <> '_'
+  LIMIT 1;
+
+  RETURN thedatasetid;
 END;
-$get_organisme_from_vn_id$ IMMUTABLE
-                           STRICT;
+$$;
 
 COMMIT;

@@ -195,40 +195,63 @@ COMMENT
     jsonb , OUT _result TEXT) IS 'Function to list medias URL from VisioNature datas';
 
 
+DROP FUNCTION IF EXISTS src_faune_france.fct_c_get_protocole_name_by_universal_id(text);
+
+CREATE OR REPLACE FUNCTION src_faune_france.fct_c_get_protocole_name_by_universal_id(_id_form_universal text)
+ RETURNS text
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    the_protocol_name text;
+BEGIN
+
+	SELECT INTO the_protocol_name 
+        fj.item #>> '{protocol,protocol_name}'
+        FROM
+            src_faune_france.forms_json fj
+        where
+        fj.item #>> '{id_form_universal}' like _id_form_universal;
+
+       RETURN the_protocol_name;
+END;
+$function$
+;
+
+
 /* Function to get observation generated UUID */
 /* NOTE: removed because uuid are now available in faune-france API */
 DROP FUNCTION IF EXISTS src_faune_france.fct_c_get_observation_uuid (_site
                                                                      CHARACTER VARYING, _id INTEGER) CASCADE;
 
-CREATE
-    OR REPLACE FUNCTION src_faune_france.fct_c_get_observation_uuid(_site
-                                                                    CHARACTER VARYING, _id INTEGER)
-    RETURNS uuid
-AS
-$$
-DECLARE
-    the_uuid uuid DEFAULT NULL;
-BEGIN
-    IF
-        (SELECT EXISTS (SELECT *
-                        FROM information_schema.tables
-                        WHERE table_schema = 'src_faune_france'
-                          AND table_name = 'uuid_xref')) THEN
-        SELECT uuid
-        INTO the_uuid
-        FROM src_faune_france.uuid_xref
-        WHERE site LIKE _site
-          AND id = _id
-        LIMIT 1;
-    END IF;
-    RETURN the_uuid;
-END;
-$$
-    LANGUAGE plpgsql;
+-- CREATE
+--     OR REPLACE FUNCTION src_faune_france.fct_c_get_observation_uuid(_site
+--                                                                     CHARACTER VARYING, _id INTEGER)
+--     RETURNS uuid
+-- AS
+-- $$
+-- DECLARE
+--     the_uuid uuid DEFAULT NULL;
+-- BEGIN
+--     IF
+--         (SELECT EXISTS (SELECT *
+--                         FROM information_schema.tables
+--                         WHERE table_schema = 'src_faune_france'
+--                           AND table_name = 'uuid_xref')) THEN
+--         SELECT uuid
+--         INTO the_uuid
+--         FROM src_faune_france.uuid_xref
+--         WHERE site LIKE _site
+--           AND id = _id
+--         LIMIT 1;
+--     END IF;
+--     RETURN the_uuid;
+-- END;
+-- $$
+--     LANGUAGE plpgsql;
 
-COMMENT
-    ON FUNCTION src_faune_france.fct_c_get_observation_uuid(_site
-    CHARACTER VARYING , _id INTEGER) IS 'Function to get observation generated UUID';
+-- COMMENT
+--     ON FUNCTION src_faune_france.fct_c_get_observation_uuid(_site
+--     CHARACTER VARYING , _id INTEGER) IS 'Function to get observation generated UUID';
 
 CREATE
     OR REPLACE FUNCTION src_faune_france.fct_c_get_taxon_diffusion_level(_cd_nom INT)

@@ -120,8 +120,7 @@ BEGIN
 
 
     /* Partie gn_synthese.synthese */
-    SELECT COALESCE(CAST(new.item #>> '{observers,0,uuid}' AS uuid),
-                    src_faune_france.fct_c_get_observation_uuid(new.site, new.id))
+    SELECT COALESCE(CAST(new.item #>> '{observers,0,uuid}' AS uuid))
     INTO
         the_unique_id_sinp;
     RAISE DEBUG 'UUID is %' , the_unique_id_sinp;
@@ -583,6 +582,7 @@ SELECT
           , the_geom_point                       = _the_geom_point
           , the_geom_local                       =
             _the_geom_local
+          , place_name = the_place  
           , date_min                             = the_date_min
           , date_max                             =
             the_date_max
@@ -617,7 +617,9 @@ SELECT
                                              , id_nomenclature_source_status, id_nomenclature_info_geo_type, count_min
                                              , count_max, cd_nom, nom_cite, meta_v_taxref, sample_number_proof
                                              , digital_proof, non_digital_proof, altitude_min, altitude_max
-                                             , the_geom_4326, the_geom_point, the_geom_local, date_min, date_max
+                                             , the_geom_4326, the_geom_point, the_geom_local,
+                                             place_name
+                                             , date_min, date_max
                                              , validation_comment, observers, id_digitiser
                                              , id_nomenclature_determination_method, comment_description
                                              , reference_biblio
@@ -637,7 +639,7 @@ SELECT
                    , the_id_nomenclature_source_status, the_id_nomenclature_info_geo_type, the_count_min, the_count_max
                    , the_cd_nom, the_nom_cite, the_meta_v_taxref, the_sample_number_proof, the_digital_proof
                    , the_non_digital_proof, the_altitude_min, the_altitude_max, _the_geom_4326, _the_geom_point
-                   , _the_geom_local, the_date_min, the_date_max, the_validation_comment, the_observers
+                   , _the_geom_local, the_place,  the_date_min, the_date_max, the_validation_comment, the_observers
                    , the_id_digitiser, the_id_nomenclature_determination_method, the_comments
                    , the_reference_biblio
                        --		     , now()
@@ -721,7 +723,8 @@ SELECT
                                          , id_nomenclature_blurring, id_nomenclature_source_status
                                          , id_nomenclature_info_geo_type, count_min, count_max, cd_nom, nom_cite
                                          , meta_v_taxref, sample_number_proof, digital_proof, non_digital_proof
-                                         , altitude_min, altitude_max, the_geom_4326, the_geom_point, the_geom_local
+                                         , altitude_min, altitude_max, the_geom_4326, the_geom_point, the_geom_local,
+                                         place_name
                                          , date_min, date_max, validation_comment, observers, id_digitiser
                                          , id_nomenclature_determination_method
                                          , comment_description, reference_biblio
@@ -739,7 +742,9 @@ SELECT
                , the_id_nomenclature_observation_status, the_id_nomenclature_blurring, the_id_nomenclature_source_status
                , the_id_nomenclature_info_geo_type, the_count_min, the_count_max, the_cd_nom, the_nom_cite
                , the_meta_v_taxref, the_sample_number_proof, the_digital_proof, the_non_digital_proof, the_altitude_min
-               , the_altitude_max, _the_geom_4326, _the_geom_point, _the_geom_local, the_date_min, the_date_max
+               , the_altitude_max, _the_geom_4326, _the_geom_point, _the_geom_local,
+               the_place
+               , the_date_min, the_date_max
                , the_validation_comment, the_observers, the_id_digitiser, the_id_nomenclature_determination_method
                , the_comments, the_reference_biblio
                    --		 , the_meta_create_date
@@ -921,8 +926,7 @@ DECLARE
     the_id_synthese    INT;
     the_unique_id_sinp uuid;
 BEGIN
-    SELECT COALESCE(CAST(old.item #>> '{observers,0,uuid}' AS uuid),
-                    src_faune_france.fct_c_get_observation_uuid(old.site, old.id))
+    SELECT COALESCE(CAST(old.item #>> '{observers,0,uuid}' AS uuid))
     INTO
         the_unique_id_sinp;
     SELECT id_synthese

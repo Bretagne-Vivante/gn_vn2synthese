@@ -43,6 +43,13 @@ ON CONFLICT
 
 INSERT INTO gn_commons.t_parameters ( id_organism, parameter_name, parameter_desc, parameter_value
                                     , parameter_extra_value)
+VALUES (NULL, 'visionature_default_actor', 'Acteur par défaut', '2', NULL)
+ON CONFLICT
+    DO NOTHING;
+
+
+INSERT INTO gn_commons.t_parameters ( id_organism, parameter_name, parameter_desc, parameter_value
+                                    , parameter_extra_value)
 VALUES (NULL, 'visionature_default_cd_nom', 'cd_nom par défaut lorsque aucune correspondance n''est trouvée'
        , (SELECT cd_nom
           FROM taxonomie.taxref

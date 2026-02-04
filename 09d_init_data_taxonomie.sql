@@ -9,10 +9,11 @@ TODO : Regénérer régulièrement cette table
 BEGIN;
 
 INSERT INTO taxonomie.bib_taxref_rangs (id_rang, nom_rang, tri_rang, nom_rang_en)
-VALUES  ('RES ', 'Regroupement sp', NULL, NULL),
-        ('RSES', 'Regroup. de ss-esp', NULL, NULL),
-        ('RGN ', 'Regroup. de genres', NULL, NULL)
-ON CONFLICT DO NOTHING
+VALUES
+  ('RES ', 'Regroupement sp',        NULL, 'Species grouping'),
+  ('RSES', 'Regroup. de ss-esp',     NULL, 'Subspecies grouping'),
+  ('RGN ', 'Regroup. de genres',     NULL, 'Genus grouping')
+  ON CONFLICT DO NOTHING
 ;
 
 INSERT INTO taxonomie.t_c_taxref_ajout (cd_nom, id_statut, id_habitat, id_rang, regne, phylum, classe, ordre, famille, sous_famille, tribu, cd_taxsup, cd_sup, cd_ref, lb_nom, lb_auteur, nom_complet, nom_complet_html, nom_valide, nom_vern, nom_vern_eng, group1_inpn, group2_inpn, group3_inpn, url)
@@ -102,7 +103,7 @@ VALUES  (-647478, 'P', 3, 'SSES', 'Animalia', 'Arthropoda', 'Insecta', 'Lepidopt
         (-4494, NULL, NULL, 'RSES', 'Animalia', 'Chordata', 'Aves', 'Passeriformes', 'Corvidae', NULL, NULL, NULL, 4494, -4494, 'Corvus monedula monedula / soemmeringgii', NULL, NULL, NULL, NULL, 'Choucas des tours de type nordique / oriental', NULL, 'Chordés', 'Oiseaux', 'Autres', NULL),
         (-4503, NULL, NULL, 'RSES', 'Animalia', 'Chordata', 'Aves', 'Passeriformes', 'Corvidae', NULL, NULL, NULL, 4503, -4503, 'Corvus corone / cornix', NULL, NULL, NULL, NULL, 'Corneille noire ou mantelée', NULL, 'Chordés', 'Oiseaux', 'Autres', NULL),
         (-2938, NULL, NULL, 'RSES', 'Animalia', 'Chordata', 'Aves', 'Falconiformes', 'Falconidae', NULL, NULL, NULL, 2938, -2938, 'Falco peregrinus calidus / tundrius', NULL, NULL, NULL, NULL, 'Faucon pèlerin de type toundra', NULL, 'Chordés', 'Oiseaux', 'Autres', NULL),
-        (-185167, NULL, NULL, 'RGN', 'Animalia', 'Chordata', 'Aves', 'Anseriformes', 'Anatidae', 'Anatinae', NULL, NULL, 185167, -185167, 'Anatidae sp. x Anatidae sp.', NULL, NULL, NULL, NULL, 'Canard hybride', NULL, 'Chordés', 'Oiseaux', 'Autres', NULL);
+        (-185167, NULL, NULL, 'RGN', 'Animalia', 'Chordata', 'Aves', 'Anseriformes', 'Anatidae', 'Anatinae', NULL, NULL, 185167, -185167, 'Anatidae sp. x Anatidae sp.', NULL, NULL, NULL, NULL, 'Canard hybride', NULL, 'Chordés', 'Oiseaux', 'Autres', NULL)
 ON CONFLICT DO NOTHING;
 
 

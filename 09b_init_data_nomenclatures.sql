@@ -14,8 +14,8 @@ INSERT INTO ref_nomenclatures.bib_nomenclatures_types (
 )
 VALUES (
     'VN_ATLAS_CODE', 'Biolovision VisioNature atlas code',
-    'Biolovision VisioNature atlas code (sites faune-xxx.org)', 'Code Atlas VisioNature ',
-    'Code Atlas VisioNature  (sites faune-xxx.org)', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'VisioNature',
+    'Biolovision VisioNature atlas code (sites faune-france.org)', 'Code Atlas VisioNature ',
+    'Code Atlas VisioNature  (sites faune-france.org)', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'VisioNature',
     NULL, now(), NULL
 );
 
@@ -695,18 +695,6 @@ INSERT INTO ref_nomenclatures.t_c_synonyms (
 VALUES (
     ref_nomenclatures.get_id_nomenclature_type('STATUT_BIO'), 'STATUT_BIO', '3', 'Reproduction', 'Reproduction',
     '14', ref_nomenclatures.get_id_nomenclature('STATUT_BIO', '3'), now(), now(), '{
-    "visionature_json_path": "{observers,0,details,0,condition}"
-  }', NULL
-);
-
-INSERT INTO ref_nomenclatures.t_c_synonyms (
-    id_type, type_mnemonique, cd_nomenclature, mnemonique, label_default,
-    initial_value, id_nomenclature, meta_create_date, meta_update_date,
-    addon_values, id_source
-)
-VALUES (
-    ref_nomenclatures.get_id_nomenclature_type('STATUT_BIO'), 'STATUT_BIO', '10', 'Passage en vol',
-    'Passage en vol', 'FLY', ref_nomenclatures.get_id_nomenclature('STATUT_BIO', '10'), now(), now(), '{
     "visionature_json_path": "{observers,0,details,0,condition}"
   }', NULL
 );
