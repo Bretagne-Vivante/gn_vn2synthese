@@ -222,13 +222,23 @@ END IF;
     --	   INTO
     --	      the_id_nomenclature_bio_status;
     SELECT CASE
-               WHEN ((new.item #>> '{observers,0,count}' = '0'
-                   AND new.item #>> '{observers,0,estimation_code}' LIKE 'EXACT_VALUE')
-                   OR (new.item #>> '{observers,0,atlas_code}' = '99')) THEN
-                   ref_nomenclatures.get_id_nomenclature('STATUT_OBS', 'No')
-               ELSE
-                   ref_nomenclatures.get_id_nomenclature('STATUT_OBS', 'Pr')
-               END
+               WHEN (
+                SELECT new.item #>> '{species,@id}' IN (
+                    SELECT id::text FROM src_faune_france.species_json
+					where item #>>'{latin_name}' LIKE 'No %'  
+                )
+            ) THEN
+                ref_nomenclatures.get_id_nomenclature('STATUT_OBS', 'No')   ---les 'No taxon' en 'non observé'
+    WHEN (new.item #>> '{observers,0,count}' = '0'
+          AND new.item #>> '{observers,0,estimation_code}' LIKE 'EXACT_VALUE') THEN
+        ref_nomenclatures.get_id_nomenclature('STATUT_OBS', 'No')
+    
+    WHEN new.item #>> '{observers,0,atlas_code}' = '99' THEN
+        ref_nomenclatures.get_id_nomenclature('STATUT_OBS', 'No')
+    
+    ELSE
+        ref_nomenclatures.get_id_nomenclature('STATUT_OBS', 'Pr')
+END
     INTO the_id_nomenclature_observation_status;
     SELECT COALESCE(
                    COALESCE(
@@ -365,6 +375,11 @@ coalesce(ref_nomenclatures.fct_c_get_synonyms_nomenclature('TYP_DENBR',new.item 
  INTO the_id_nomenclature_behaviour;
         SELECT
 	CASE
+	 WHEN (SELECT new.item #>> '{species,@id}' IN (
+                    SELECT id::text FROM src_faune_france.species_json
+					where item #>>'{latin_name}' LIKE 'No %'  
+                )
+            ) THEN 0  -- si espèce 'No taxon' on met effectif à 0
             WHEN ((new.item #>> '{observers,0,count}' = '0'
                 AND new.item #>> '{observers,0,estimation_code}' LIKE 'NO_VALUE'))--quand non compté on met un effectif à 1
     THEN 1
